@@ -102,3 +102,12 @@ venv.bak/
 
 # mypy
 .mypy_cache/
+
+# dataset folders
+data_f/
+data_l/
+data_m/
+data_c/
+
+# results
+results/

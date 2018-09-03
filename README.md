@@ -10,8 +10,9 @@ It should do MNIST and CIFAR without much trouble. I'll get to working on some a
 
 ![results](images/mnist_results.png)
 
+# CIFAR10
 
-
+![results](images/cifar_results.png)
 
 ## Notes
 

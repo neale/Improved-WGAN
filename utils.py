@@ -2,11 +2,9 @@ import os
 import sys
 import time
 import torch
-import glob, natsort
+import glob
 import itertools
-import scipy.misc
 import numpy as np
-import cv2
 
 from scipy.misc import imsave
 import torch.nn as nn
@@ -108,7 +106,7 @@ def generate_image(args, iter, netG):
     with torch.no_grad():
         noise = torch.randn(args.batch_size, args.z, requires_grad=True).cuda()
         samples = netG(noise)
-    if samples.dim() == 3:
+    if samples.dim() < 4:
         channels = 1
         out_size = int(np.sqrt(args.output))
         samples = samples.view(-1, out_size, out_size)

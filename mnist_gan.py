@@ -1,12 +1,10 @@
 import os
 import sys
-import time
 import argparse
 import numpy as np
 import torch
 import torchvision
 
-from scipy.misc import imsave
 from torch import nn
 from torch import optim
 from torch.nn import functional as F
@@ -112,34 +110,28 @@ def train(args):
     reals, _ = next(train)
     utils.save_images(reals.detach().cpu().numpy(), 'results/mnist/reals.png')
     
-
-    z_dist = utils.create_d(args.z)
-    sample_dist = utils.create_d(1)
     one = torch.FloatTensor([1]).cuda()
     mone = (one * -1)
-    total_batches = 0
     
     print ('==> Begin Training')
     for iter in range(args.epochs):
-        total_batches += 1
         ops.batch_zero_grad([netG, netD])
         for p in netD.parameters():
             p.requires_grad = True
         for _ in range(args.disc_iters):
             data, targets = next(train)
-            data = data.view(args.batch_size, 784).cuda()
+            data = data.view(args.batch_size, 28*28).cuda()
             netD.zero_grad()
             d_real = netD(data).mean()
             d_real.backward(mone, retain_graph=True)
             noise = torch.randn(args.batch_size, args.z, requires_grad=True).cuda()
-            #noise = utils.sample_d(z_dist, args.batch_size)
             with torch.no_grad():
                 fake = netG(noise)
             fake.requires_grad_(True)
             d_fake = netD(fake)
             d_fake = d_fake.mean()
             d_fake.backward(one, retain_graph=True)
-            gp = ops.grad_penalty_1dim(args, sample_dist, netD, data, fake)
+            gp = ops.grad_penalty_1dim(args, netD, data, fake)
             gp.backward()
             d_cost = d_fake - d_real + gp
             wasserstein_d = d_real - d_fake
@@ -148,7 +140,6 @@ def train(args):
         for p in netD.parameters():
             p.requires_grad=False
         netG.zero_grad()
-        #noise = utils.sample_d(z_dist, args.batch_size)
         noise = torch.randn(args.batch_size, args.z, requires_grad=True).cuda()
         fake = netG(noise)
         G = netD(fake)

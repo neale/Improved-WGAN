@@ -48,8 +48,8 @@ def pretrain_loss(encoded, noise):
     return mean_loss, cov_loss
 
 
-def grad_penalty_1dim(args, dist, netD, data, fake):
-    alpha = torch.randn(args.batch_size, args.z, requires_grad=True).cuda()
+def grad_penalty_1dim(args, netD, data, fake):
+    alpha = torch.randn(args.batch_size, 1, requires_grad=True).cuda()
     alpha = alpha.expand(data.size()).cuda()
     interpolates = alpha * data + ((1 - alpha) * fake).cuda()
     disc_interpolates = netD(interpolates)
@@ -62,7 +62,7 @@ def grad_penalty_1dim(args, dist, netD, data, fake):
     return gradient_penalty
 
 
-def grad_penalty_3dim(args, dist, netD, data, fake):
+def grad_penalty_3dim(args, netD, data, fake):
     out_size = int(np.sqrt(args.output//3))
     alpha = torch.randn(args.batch_size, 1, requires_grad=True).cuda()
     alpha = alpha.expand(args.batch_size, data.nelement()/args.batch_size)

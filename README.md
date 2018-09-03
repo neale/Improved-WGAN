@@ -10,7 +10,7 @@ This should work **out of the box** with just a couple packages:
 * Numpy
 
 
-It should do MNIST and CIFAR without much trouble. I'll get to working on some agnostic one with will just use the `ImageFolder` function. It seems like a lot of people just want to run these on their own images. 
+It should do MNIST and CIFAR without much trouble. I'll get to working on some agnostic one which will just use the `ImageFolder` function. It seems like a lot of people just want to run these on their own images. 
 
 # MNIST
 

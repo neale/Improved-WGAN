@@ -28,9 +28,9 @@ def load_args():
     parser.add_argument('--resume', default=False, type=bool)
     parser.add_argument('--pretrain_e', default=False, type=bool)
     parser.add_argument('--scratch', default=False, type=bool)
-    parser.add_argument('--exp', default='0', type=str)
-    parser.add_argument('--output', default=784, type=int)
-    parser.add_argument('--dataset', default='mnist', type=str)
+    parser.add_argument('--exp', default='1', type=str)
+    parser.add_argument('--output', default=3072, type=int)
+    parser.add_argument('--dataset', default='cifar', type=str)
 
     args = parser.parse_args()
     return args
@@ -42,23 +42,25 @@ class Generator(nn.Module):
         for k, v in vars(args).items():
             setattr(self, k, v)
         self.name = 'Generator'
-        self.linear1 = nn.Linear(128, 4*4*4*self.dim)
-        self.conv1 = nn.ConvTranspose2d(4*self.dim, 2*self.dim, 5)
-        self.conv2 = nn.ConvTranspose2d(2*self.dim, self.dim, 5)
-        self.conv3 = nn.ConvTranspose2d(self.dim, 1, 8, stride=2)
+        self.linear1 = nn.Linear(self.z, 4*4*4*self.dim)
+        self.conv1 = nn.ConvTranspose2d(4*self.dim, 2*self.dim, 2, stride=2)
+        self.conv2 = nn.ConvTranspose2d(2*self.dim, self.dim, 2, stride=2)
+        self.conv3 = nn.ConvTranspose2d(self.dim, 3, 2, stride=2)
+        self.bn0 = nn.BatchNorm1d(4*4*4*self.dim)
+        self.bn1 = nn.BatchNorm2d(2*self.dim)
+        self.bn2 = nn.BatchNorm2d(self.dim)
         self.relu = nn.ReLU(inplace=True)
-        self.sigmoid = nn.Sigmoid()
+        self.tanh = nn.Tanh()
 
     def forward(self, x):
         #print ('G in: ', x.shape)
-        x = self.relu(self.linear1(x))
+        x = self.relu(self.bn0(self.linear1(x)))
         x = x.view(-1, 4*self.dim, 4, 4)
-        x = self.relu(self.conv1(x))
-        x = x[:, :, :7, :7]
-        x = self.relu(self.conv2(x))
+        x = self.relu(self.bn1(self.conv1(x)))
+        x = self.relu(self.bn2(self.conv2(x)))
         x = self.conv3(x)
-        x = self.sigmoid(x)
-        x = x.view(-1, 28*28)
+        x = self.tanh(x)
+        x = x.view(-1, 3, 32, 32)
         #print ('G out: ', x.shape)
         return x
 
@@ -69,21 +71,20 @@ class Discriminator(nn.Module):
         for k, v in vars(args).items():
             setattr(self, k, v)
         self.name = 'Discriminator'
-        self.conv1 = nn.Conv2d(1, self.dim, 5, stride=2, padding=2)
-        self.conv2 = nn.Conv2d(self.dim, 2*self.dim, 5, stride=2, padding=2)
-        self.conv3 = nn.Conv2d(2*self.dim, 4*self.dim, 5, stride=2, padding=2)
+        self.conv1 = nn.Conv2d(3, self.dim, 2, stride=2, padding=1)
+        self.conv2 = nn.Conv2d(self.dim, 2*self.dim, 3, stride=2, padding=1)
+        self.conv3 = nn.Conv2d(2*self.dim, 4*self.dim, 3, stride=2, padding=1)
         self.relu = nn.ReLU(inplace=True)
         self.linear1 = nn.Linear(4*4*4*self.dim, 1)
 
     def forward(self, x):
         # print ('D in: ', x.shape)
-        x = x.view(-1, 1, 28, 28)
+        x = x.view(-1, 3, 32, 32)
         x = self.relu(self.conv1(x))
         x = self.relu(self.conv2(x))
         x = self.relu(self.conv3(x))
         x = x.view(-1, 4*4*4*self.dim)
         x = self.linear1(x)
-        x = x.view(-1)
         # print ('D out: ', x.shape)
         return x
 
@@ -106,12 +107,11 @@ def train(args):
     optimG = optim.Adam(netG.parameters(), lr=1e-4, betas=(0.5, 0.9), weight_decay=1e-4)
     optimD = optim.Adam(netD.parameters(), lr=1e-4, betas=(0.5, 0.9), weight_decay=1e-4)
     
-    mnist_train, mnist_test = datagen.load_mnist(args)
-    train = inf_gen(mnist_train)
+    cifar_train, cifar_test = datagen.load_cifar(args)
+    train = inf_gen(cifar_train)
     print ('saving reals')
     reals, _ = next(train)
-    utils.save_images(reals.detach().cpu().numpy(), 'results/mnist/reals.png')
-    
+    utils.save_images(reals.detach().cpu().numpy(), 'results/cifar/reals.png') 
 
     z_dist = utils.create_d(args.z)
     sample_dist = utils.create_d(1)
@@ -127,7 +127,6 @@ def train(args):
             p.requires_grad = True
         for _ in range(args.disc_iters):
             data, targets = next(train)
-            data = data.view(args.batch_size, 784).cuda()
             netD.zero_grad()
             d_real = netD(data).mean()
             d_real.backward(mone, retain_graph=True)
@@ -139,7 +138,7 @@ def train(args):
             d_fake = netD(fake)
             d_fake = d_fake.mean()
             d_fake.backward(one, retain_graph=True)
-            gp = ops.grad_penalty_1dim(args, sample_dist, netD, data, fake)
+            gp = ops.grad_penalty_3dim(args, sample_dist, netD, data, fake)
             gp.backward()
             d_cost = d_fake - d_real + gp
             wasserstein_d = d_real - d_fake
@@ -162,12 +161,13 @@ def train(args):
             print('iter: ', iter, 'train G cost', g_cost.cpu().item())
         if iter % 300 == 0:
             val_d_costs = []
-            for i, (data, target) in enumerate(mnist_test):
+            for i, (data, target) in enumerate(cifar_test):
                 data = data.cuda()
                 d = netD(data)
                 val_d_cost = -d.mean().item()
                 val_d_costs.append(val_d_cost)
             utils.generate_image(args, iter, netG)
+          
 
 if __name__ == '__main__':
 

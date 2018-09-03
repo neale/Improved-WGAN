@@ -2,23 +2,16 @@ import os
 import sys
 import time
 import torch
-import natsort
-import datagen
+import glob, natsort
+import itertools
 import scipy.misc
 import numpy as np
-import itertools
 import cv2
-import numpy as np
 
-from glob import glob
 from scipy.misc import imsave
 import torch.nn as nn
 import torch.nn.init as init
 import torch.distributions.multivariate_normal as N
-
-
-param_dir = './params/sampled/mnist/test1/'
-model_dir = 'models/HyperGAN/'
 
 
 def sample_z(args, grad=True):
@@ -79,215 +72,6 @@ def load_net_only(model, d):
     return model
 
 
-def save_clf(args, Z, acc):
-    import models.mnist_clf as models
-    model = models.Small2().cuda()
-    state = model.state_dict()
-    layers = zip(args.stat['layer_names'], Z)
-    for i, (name, params) in enumerate(layers):
-        name = name + '.weight'
-        loader = state[name]
-        state[name] = params.detach()
-        assert state[name].equal(loader) == False
-        model.load_state_dict(state)
-    path = 'exp_models/hypermnist_clf_{}.pt'.format(acc)
-    print ('saving hypernet to {}'.format(path))
-    torch.save({'state_dict': model.state_dict()}, path)
-
-
-def save_hypernet(args, models, acc):
-    netE, W1, W2, W3 = models
-    hypernet_dict = {
-            'E':  get_net_only(netE),
-            'W1': get_net_only(W1),
-            'W2': get_net_only(W2),
-            'W3': get_net_only(W3),
-            }
-    path = 'exp_models/hypermnist_{}.pt'.format(acc)
-    torch.save(hypernet_dict, path)
-    print ('Hypernet saved to {}'.format(path))
-
-
-""" hard coded for mnist experiment dont use generally """
-def load_hypernet(path, args=None):
-    if args is None:
-        args = load_default_args()
-    netE = hyper.Encoder_small(args).cuda()
-    W1 = hyper.GeneratorW1_small(args).cuda()
-    W2 = hyper.GeneratorW2_small(args).cuda()
-    W3 = hyper.GeneratorW3_small(args).cuda()
-    print ('loading hypernet from {}'.format(path))
-    d = torch.load(path)
-    netE = load_net_only(netE, d['E'])
-    W1 = load_net_only(W1, d['W1'])
-    W2 = load_net_only(W2, d['W2'])
-    W3 = load_net_only(W3, d['W3'])
-    return (netE, W1, W2, W3)
-
-
-def load_default_args():
-    parser = argparse.ArgumentParser(description='default hyper-args')
-    parser.add_argument('--z', default=128, type=int, help='latent space width')
-    parser.add_argument('--ze', default=300, type=int, help='encoder dimension')
-    parser.add_argument('--batch_size', default=32, type=int)
-    parser.add_argument('--model', default='small2', type=str)
-    parser.add_argument('--beta', default=1000, type=int)
-    parser.add_argument('--use_x', default=False, type=bool)
-    parser.add_argument('--exp', default='0', type=str)
-    parser.add_argument('--use_d', default=False, type=str)
-    parser.add_argument('--boost', default=10, type=int)
-    args = parser.parse_args()
-    return args
-
-
-def dataset_iterator(args, id):
-    train_gen, dev_gen = datagen.load(args, id)
-    return (train_gen, dev_gen)
-
-
-def inf_train_gen(train_gen):
-    if type(train_gen) is list:
-        while True:
-            for (p1) in (train_gen[0](), train_gen[1]()):
-                yield (p1)
-    else:
-        while True:
-            for params in train_gen():
-                yield params
-
-
-def load_params(flat=True):
-    paths = glob(param_dir+'/*.npy')
-    paths = natsort.natsorted(paths)
-    s = np.load(paths[0]).shape
-    # print (s)
-    params = np.zeros((len(paths), *s))
-    # print (params.shape)
-    for i in range(len(paths)):
-        params[i] = np.load(paths[i])
-
-    if flat is True:
-        res = params.flatten()
-        params = res
-    return res
-
-
-def save_samples(args, samples, iter, path):
-    # lets view the first filter
-    filters = samples[:, 0, :, :]
-    filters = filters.unsqueeze(3)
-    grid_img = grid(16, 8, filters, margin=2)
-    im_path = 'plots/{}/{}/filters/{}.png'.format(args.dataset, args.model, iter)
-    cv2.imwrite(im_path, grid_img)
-    return
-
-
-_, term_width = os.popen('stty size', 'r').read().split()
-term_width = int(term_width)
-
-TOTAL_BAR_LENGTH = 65.
-last_time = time.time()
-begin_time = last_time
-
-
-def progress_bar(current, total, msg=None):
-    global last_time, begin_time
-    if current == 0:
-        begin_time = time.time()  # Reset for new bar.
-
-    cur_len = int(TOTAL_BAR_LENGTH*current/total)
-    rest_len = int(TOTAL_BAR_LENGTH - cur_len) - 1
-
-    sys.stdout.write(' [')
-    for i in range(cur_len):
-        sys.stdout.write('=')
-    sys.stdout.write('>')
-    for i in range(rest_len):
-        sys.stdout.write('.')
-    sys.stdout.write(']')
-
-    cur_time = time.time()
-    step_time = cur_time - last_time
-    last_time = cur_time
-    tot_time = cur_time - begin_time
-
-    L = []
-    L.append('  Step: %s' % format_time(step_time))
-    L.append(' | Tot: %s' % format_time(tot_time))
-    if msg:
-        L.append(' | ' + msg)
-
-    msg = ''.join(L)
-    sys.stdout.write(msg)
-    for i in range(term_width-int(TOTAL_BAR_LENGTH)-len(msg)-3):
-        sys.stdout.write(' ')
-
-    # Go back to the center of the bar.
-    for i in range(term_width-int(TOTAL_BAR_LENGTH/2)+2):
-        sys.stdout.write('\b')
-    sys.stdout.write(' %d/%d ' % (current+1, total))
-
-    if current < total-1:
-        sys.stdout.write('\r')
-    else:
-        sys.stdout.write('\n')
-    sys.stdout.flush()
-
-
-def format_time(seconds):
-    days = int(seconds / 3600/24)
-    seconds = seconds - days*3600*24
-    hours = int(seconds / 3600)
-    seconds = seconds - hours*3600
-    minutes = int(seconds / 60)
-    seconds = seconds - minutes*60
-    secondsf = int(seconds)
-    seconds = seconds - secondsf
-    millis = int(seconds*1000)
-
-    f = ''
-    i = 1
-    if days > 0:
-        f += str(days) + 'D'
-        i += 1
-    if hours > 0 and i <= 2:
-        f += str(hours) + 'h'
-        i += 1
-    if minutes > 0 and i <= 2:
-        f += str(minutes) + 'm'
-        i += 1
-    if secondsf > 0 and i <= 2:
-        f += str(secondsf) + 's'
-        i += 1
-    if millis > 0 and i <= 2:
-        f += str(millis) + 'ms'
-        i += 1
-    if f == '':
-        f = '0ms'
-    return f
-
-
-def grid(w, h, imgs, margin):
-    n = w*h
-    img_h, img_w, img_c = imgs[0].shape
-    m_x = 0
-    m_y = 0
-    if margin is not None:
-        m_x = int(margin)
-        m_y = m_x
-    imgmatrix = np.zeros((img_h * h + m_y * (h - 1),
-        img_w * w + m_x * (w - 1),
-        img_c),
-        np.uint8)
-    imgmatrix.fill(255)    
-
-    positions = itertools.product(range(w), range(h))
-    for (x_i, y_i), img in zip(positions, imgs):
-        x = x_i * (img_w + m_x)
-        y = y_i * (img_h + m_y)
-        imgmatrix[y:y+img_h, x:x+img_w, :] = img
-    return imgmatrix
-
 
 def save_images(X, save_path):
     # [0, 1] -> [0,255]
@@ -320,10 +104,19 @@ def save_images(X, save_path):
 
 
 def generate_image(args, iter, netG):
-    #noise = sample_d(dist, args.batch_size)
-    noise = torch.randn(args.batch_size, args.z, requires_grad=True).cuda()
-    samples = netG(noise)
-    samples = samples.view(args.batch_size, 28, 28)
+    res = args.dataset
+    with torch.no_grad():
+        noise = torch.randn(args.batch_size, args.z, requires_grad=True).cuda()
+        samples = netG(noise)
+    if samples.dim() == 3:
+        channels = 1
+        out_size = int(np.sqrt(args.output))
+        samples = samples.view(-1, out_size, out_size)
+    else:
+        channels = samples.shape[1]
+        out_size = int(np.sqrt(args.output//3))
+        samples = samples.view(-1, channels, out_size, out_size)
+       	samples = samples.mul(0.5).add(0.5) 
     samples = samples.cpu().data.numpy()
-    print ('saving sample: results/mnist/samples_{}.png'.format(iter))
-    save_images(samples, 'results/mnist/samples_{}.png'.format(iter))
+    print ('saving sample: results/{}/samples_{}.png'.format(res, iter))
+    save_images(samples, 'results/{}/samples_{}.png'.format(res, iter))

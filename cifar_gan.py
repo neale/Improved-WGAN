@@ -26,7 +26,6 @@ def load_args():
     parser.add_argument('--epochs', default=200000, type=int)
     parser.add_argument('--resume', default=False, type=bool)
     parser.add_argument('--pretrain_e', default=False, type=bool)
-    parser.add_argument('--scratch', default=False, type=bool)
     parser.add_argument('--exp', default='1', type=str)
     parser.add_argument('--output', default=3072, type=int)
     parser.add_argument('--dataset', default='cifar', type=str)
@@ -48,7 +47,7 @@ class Generator(nn.Module):
         self.bn0 = nn.BatchNorm1d(4*4*4*self.dim)
         self.bn1 = nn.BatchNorm2d(2*self.dim)
         self.bn2 = nn.BatchNorm2d(self.dim)
-        self.relu = nn.ReLU(inplace=True)
+        self.relu = nn.ELU(inplace=True)
         self.tanh = nn.Tanh()
 
     def forward(self, x):
@@ -73,7 +72,7 @@ class Discriminator(nn.Module):
         self.conv1 = nn.Conv2d(3, self.dim, 2, stride=2, padding=1)
         self.conv2 = nn.Conv2d(self.dim, 2*self.dim, 3, stride=2, padding=1)
         self.conv3 = nn.Conv2d(2*self.dim, 4*self.dim, 3, stride=2, padding=1)
-        self.relu = nn.ReLU(inplace=True)
+        self.relu = nn.ELU(inplace=True)
         self.linear1 = nn.Linear(4*4*4*self.dim, 1)
 
     def forward(self, x):
@@ -110,6 +109,12 @@ def train(args):
     train = inf_gen(cifar_train)
     print ('saving reals')
     reals, _ = next(train)
+    
+    if not os.path.exists('results/'): 
+        os.makedirs('results')
+    if not os.path.exists('results/cifar'):
+        os.makedirs('results/cifar')
+
     utils.save_images(reals.detach().cpu().numpy(), 'results/cifar/reals.png') 
 
     one = torch.FloatTensor([1]).cuda()

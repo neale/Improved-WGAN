@@ -102,7 +102,6 @@ def save_images(X, save_path):
 
 
 def generate_image(args, iter, netG):
-    res = args.dataset
     with torch.no_grad():
         noise = torch.randn(args.batch_size, args.z, requires_grad=True).cuda()
         samples = netG(noise)
@@ -116,5 +115,6 @@ def generate_image(args, iter, netG):
         samples = samples.view(-1, channels, out_size, out_size)
        	samples = samples.mul(0.5).add(0.5) 
     samples = samples.cpu().data.numpy()
-    print ('saving sample: results/{}/samples_{}.png'.format(res, iter))
-    save_images(samples, 'results/{}/samples_{}.png'.format(res, iter))
+    path = 'results/{}/samples{}/png'.format(args.dataset, iter)
+    print ('saving sample: ', path)
+    save_images(samples, path)

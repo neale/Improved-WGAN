@@ -25,7 +25,6 @@ def load_args():
     parser.add_argument('--epochs', default=200000, type=int)
     parser.add_argument('--resume', default=False, type=bool)
     parser.add_argument('--pretrain_e', default=False, type=bool)
-    parser.add_argument('--scratch', default=False, type=bool)
     parser.add_argument('--exp', default='0', type=str)
     parser.add_argument('--output', default=784, type=int)
     parser.add_argument('--dataset', default='mnist', type=str)
@@ -72,17 +71,13 @@ class Discriminator(nn.Module):
         self.conv3 = nn.Conv2d(2*self.dim, 4*self.dim, 5, stride=2, padding=2)
         self.relu = nn.ELU(inplace=True)
         self.linear1 = nn.Linear(4*4*4*self.dim, 1)
-        #self.ln1 = nn.LayerNorm(
 
     def forward(self, x):
         # print ('D in: ', x.shape)
         x = x.view(-1, 1, 28, 28)
         x = self.relu(self.conv1(x))
-        print (x.shape)
         x = self.relu(self.conv2(x))
-        print (x.shape)
         x = self.relu(self.conv3(x))
-        print (x.shape)
         x = x.view(-1, 4*4*4*self.dim)
         x = self.linear1(x)
         x = x.view(-1)
@@ -112,6 +107,11 @@ def train(args):
     train = inf_gen(mnist_train)
     print ('saving reals')
     reals, _ = next(train)
+    if not os.path.exists('results/'): 
+        os.makedirs('results')
+    if not os.path.exists('results/mnist'):
+        os.makedirs('results/mnist')
+
     utils.save_images(reals.detach().cpu().numpy(), 'results/mnist/reals.png')
     
     one = torch.FloatTensor([1]).cuda()

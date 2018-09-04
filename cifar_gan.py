@@ -45,18 +45,18 @@ class Generator(nn.Module):
         self.conv1 = nn.ConvTranspose2d(4*self.dim, 2*self.dim, 2, stride=2)
         self.conv2 = nn.ConvTranspose2d(2*self.dim, self.dim, 2, stride=2)
         self.conv3 = nn.ConvTranspose2d(self.dim, 3, 2, stride=2)
-        self.bn0 = nn.BatchNorm1d(4*4*4*self.dim)
-        self.bn1 = nn.BatchNorm2d(2*self.dim)
-        self.bn2 = nn.BatchNorm2d(self.dim)
-        self.relu = nn.ReLU(inplace=True)
+        self.ln0 = nn.LayerNorm([4096])
+        self.ln1 = nn.LayerNorm([128, 8, 8])
+        self.ln2 = nn.LayerNorm([64, 16, 16])
+        self.relu = nn.ELU(inplace=True)
         self.tanh = nn.Tanh()
 
     def forward(self, x):
         #print ('G in: ', x.shape)
-        x = self.relu(self.bn0(self.linear1(x)))
+        x = self.relu(self.ln0(self.linear1(x)))
         x = x.view(-1, 4*self.dim, 4, 4)
-        x = self.relu(self.bn1(self.conv1(x)))
-        x = self.relu(self.bn2(self.conv2(x)))
+        x = self.relu(self.ln1(self.conv1(x)))
+        x = self.relu(self.ln2(self.conv2(x)))
         x = self.conv3(x)
         x = self.tanh(x)
         x = x.view(-1, 3, 32, 32)
@@ -73,8 +73,11 @@ class Discriminator(nn.Module):
         self.conv1 = nn.Conv2d(3, self.dim, 2, stride=2, padding=1)
         self.conv2 = nn.Conv2d(self.dim, 2*self.dim, 3, stride=2, padding=1)
         self.conv3 = nn.Conv2d(2*self.dim, 4*self.dim, 3, stride=2, padding=1)
-        self.relu = nn.ReLU(inplace=True)
+        self.relu = nn.ELU(inplace=True)
         self.linear1 = nn.Linear(4*4*4*self.dim, 1)
+        self.ln1 = nn.LayerNorm([64, 17, 17])
+        self.ln2 = nn.LayerNorm([128, 9, 9])
+        self.ln3 = nn.LayerNorm([256, 5, 5])
 
     def forward(self, x):
         # print ('D in: ', x.shape)
@@ -110,7 +113,11 @@ def train(args):
     train = inf_gen(cifar_train)
     print ('saving reals')
     reals, _ = next(train)
-    utils.save_images(reals.detach().cpu().numpy(), 'results/cifar/reals.png') 
+    path = 'results/cifar/reals.png'
+    if args.scratch:
+        path = '/scratch/eecs-share/ratzlafn/Improved-WGAN/'+path
+    utils.save_images(reals.detach().cpu().numpy(), path)
+    
 
     one = torch.FloatTensor([1]).cuda()
     mone = (one * -1)

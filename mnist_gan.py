@@ -72,17 +72,16 @@ class Discriminator(nn.Module):
         self.conv3 = nn.Conv2d(2*self.dim, 4*self.dim, 5, stride=2, padding=2)
         self.relu = nn.ELU(inplace=True)
         self.linear1 = nn.Linear(4*4*4*self.dim, 1)
-        #self.ln1 = nn.LayerNorm(
+        self.ln1 = nn.LayerNorm([64, 14, 14])
+        self.ln2 = nn.LayerNorm([128, 7, 7])
+        self.ln3 = nn.LayerNorm([256, 4, 4])
 
     def forward(self, x):
         # print ('D in: ', x.shape)
         x = x.view(-1, 1, 28, 28)
-        x = self.relu(self.conv1(x))
-        print (x.shape)
-        x = self.relu(self.conv2(x))
-        print (x.shape)
-        x = self.relu(self.conv3(x))
-        print (x.shape)
+        x = self.relu(self.ln1(self.conv1(x)))
+        x = self.relu(self.ln2(self.conv2(x)))
+        x = self.relu(self.ln3(self.conv3(x)))
         x = x.view(-1, 4*4*4*self.dim)
         x = self.linear1(x)
         x = x.view(-1)
@@ -112,7 +111,10 @@ def train(args):
     train = inf_gen(mnist_train)
     print ('saving reals')
     reals, _ = next(train)
-    utils.save_images(reals.detach().cpu().numpy(), 'results/mnist/reals.png')
+    path = 'results/mnist/reals.png'
+    if args.scratch:
+        path = '/scratch/eecs-share/ratzlafn/Improved-WGAN/'+path
+    utils.save_images(reals.detach().cpu().numpy(), path)
     
     one = torch.FloatTensor([1]).cuda()
     mone = (one * -1)

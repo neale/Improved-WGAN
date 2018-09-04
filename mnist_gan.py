@@ -44,7 +44,7 @@ class Generator(nn.Module):
         self.conv1 = nn.ConvTranspose2d(4*self.dim, 2*self.dim, 5)
         self.conv2 = nn.ConvTranspose2d(2*self.dim, self.dim, 5)
         self.conv3 = nn.ConvTranspose2d(self.dim, 1, 8, stride=2)
-        self.relu = nn.ReLU(inplace=True)
+        self.relu = nn.ELU(inplace=True)
         self.sigmoid = nn.Sigmoid()
 
     def forward(self, x):
@@ -70,15 +70,19 @@ class Discriminator(nn.Module):
         self.conv1 = nn.Conv2d(1, self.dim, 5, stride=2, padding=2)
         self.conv2 = nn.Conv2d(self.dim, 2*self.dim, 5, stride=2, padding=2)
         self.conv3 = nn.Conv2d(2*self.dim, 4*self.dim, 5, stride=2, padding=2)
-        self.relu = nn.ReLU(inplace=True)
+        self.relu = nn.ELU(inplace=True)
         self.linear1 = nn.Linear(4*4*4*self.dim, 1)
+        #self.ln1 = nn.LayerNorm(
 
     def forward(self, x):
         # print ('D in: ', x.shape)
         x = x.view(-1, 1, 28, 28)
         x = self.relu(self.conv1(x))
+        print (x.shape)
         x = self.relu(self.conv2(x))
+        print (x.shape)
         x = self.relu(self.conv3(x))
+        print (x.shape)
         x = x.view(-1, 4*4*4*self.dim)
         x = self.linear1(x)
         x = x.view(-1)

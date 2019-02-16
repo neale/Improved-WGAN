@@ -7,7 +7,7 @@ import torchvision
 from torchvision import datasets, transforms
 
 
-def load_fashion_mnist():
+def load_fashion_mnist(args):
     path = 'data_f'
     torch.cuda.manual_seed(1)
     kwargs = {'num_workers': 1, 'pin_memory': True, 'drop_last': True}
@@ -16,13 +16,13 @@ def load_fashion_mnist():
                 transform=transforms.Compose([
                     transforms.ToTensor(),
                     ])),
-                batch_size=32, shuffle=True, **kwargs)
+                batch_size=args.batch_size, shuffle=True, **kwargs)
     test_loader = torch.utils.data.DataLoader(
             datasets.FashionMNIST(path, train=False, download=True,
                 transform=transforms.Compose([
                     transforms.ToTensor(),
                     ])),
-                batch_size=32, shuffle=True, **kwargs)
+                batch_size=args.batch_size, shuffle=True, **kwargs)
     return train_loader, test_loader
 
 
@@ -37,11 +37,11 @@ def load_cifar(args):
         ])  
     trainset = torchvision.datasets.CIFAR10(root=path, train=True,
             download=True, transform=transform_train)
-    trainloader = torch.utils.data.DataLoader(trainset, batch_size=32,
+    trainloader = torch.utils.data.DataLoader(trainset, batch_size=args.batch_size,
             shuffle=True, **kwargs)
     testset = torchvision.datasets.CIFAR10(root=path, train=False,
             download=True, transform=transform_test)
-    testloader = torch.utils.data.DataLoader(testset, batch_size=32,
+    testloader = torch.utils.data.DataLoader(testset, batch_size=args.batch_size,
             shuffle=False, **kwargs)
     return trainloader, testloader
 
@@ -55,10 +55,10 @@ def load_mnist(args):
                 transform=transforms.Compose([
                     transforms.ToTensor(),
                     ])),
-                batch_size=32, shuffle=True, **kwargs)
+                batch_size=args.batch_size, shuffle=True, **kwargs)
     test_loader = torch.utils.data.DataLoader(
             datasets.MNIST(path, train=False, transform=transforms.Compose([
                 transforms.ToTensor(),
                 ])),
-            batch_size=32, shuffle=True, **kwargs)
+            batch_size=args.batch_size, shuffle=True, **kwargs)
     return train_loader, test_loader

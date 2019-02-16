@@ -9,6 +9,7 @@ import torchvision
 from torch import nn
 from torch import optim
 from torch.nn import functional as F
+from torchvision.utils import save_image
 
 import ops
 import utils
@@ -51,7 +52,6 @@ class Generator(nn.Module):
         self.tanh = nn.Tanh()
 
     def forward(self, x):
-        #print ('G in: ', x.shape)
         x = self.relu(self.bn0(self.linear1(x)))
         x = x.view(-1, 4*self.dim, 4, 4)
         x = self.relu(self.bn1(self.conv1(x)))
@@ -59,7 +59,6 @@ class Generator(nn.Module):
         x = self.conv3(x)
         x = self.tanh(x)
         x = x.view(-1, 3, 32, 32)
-        #print ('G out: ', x.shape)
         return x
 
 
@@ -76,14 +75,12 @@ class Discriminator(nn.Module):
         self.linear1 = nn.Linear(4*4*4*self.dim, 1)
 
     def forward(self, x):
-        # print ('D in: ', x.shape)
         x = x.view(-1, 3, 32, 32)
         x = self.relu(self.conv1(x))
         x = self.relu(self.conv2(x))
         x = self.relu(self.conv3(x))
         x = x.view(-1, 4*4*4*self.dim)
         x = self.linear1(x)
-        # print ('D out: ', x.shape)
         return x
 
 
@@ -112,12 +109,10 @@ def train(args):
     
     if not os.path.exists('results/'): 
         os.makedirs('results')
-    if not os.path.exists('results/cifar'):
-        os.makedirs('results/cifar')
 
-    utils.save_images(reals.detach().cpu().numpy(), 'results/cifar/reals.png') 
+    save_image(reals, 'results/reals.png') 
 
-    one = torch.FloatTensor([1]).cuda()
+    one = torch.tensor(1.).cuda()
     mone = (one * -1)
     total_batches = 0
     

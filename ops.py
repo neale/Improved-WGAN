@@ -63,10 +63,9 @@ def grad_penalty_1dim(args, netD, data, fake):
 
 
 def grad_penalty_3dim(args, netD, data, fake):
-    out_size = int(np.sqrt(args.output//3))
     alpha = torch.randn(args.batch_size, 1, requires_grad=True).cuda()
-    alpha = alpha.expand(args.batch_size, data.nelement()/args.batch_size)
-    alpha = alpha.contiguous().view(args.batch_size, 3, out_size, out_size)
+    alpha = alpha.expand(args.batch_size, data.nelement()//args.batch_size)
+    alpha = alpha.contiguous().view(args.batch_size, 3, 32, 32)
     interpolates = alpha * data + ((1 - alpha) * fake).cuda()
     disc_interpolates = netD(interpolates)
 

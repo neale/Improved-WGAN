@@ -8,7 +8,7 @@ import torchvision
 from torch import nn
 from torch import optim
 from torch.nn import functional as F
-
+from torchvision.utils import save_image
 import ops
 import utils
 import datagen
@@ -47,7 +47,6 @@ class Generator(nn.Module):
         self.sigmoid = nn.Sigmoid()
 
     def forward(self, x):
-        #print ('G in: ', x.shape)
         x = self.relu(self.linear1(x))
         x = x.view(-1, 4*self.dim, 4, 4)
         x = self.relu(self.conv1(x))
@@ -56,7 +55,6 @@ class Generator(nn.Module):
         x = self.conv3(x)
         x = self.sigmoid(x)
         x = x.view(-1, 28*28)
-        #print ('G out: ', x.shape)
         return x
 
 
@@ -81,7 +79,6 @@ class Discriminator(nn.Module):
         x = x.view(-1, 4*4*4*self.dim)
         x = self.linear1(x)
         x = x.view(-1)
-        # print ('D out: ', x.shape)
         return x
 
 
@@ -109,12 +106,10 @@ def train(args):
     reals, _ = next(train)
     if not os.path.exists('results/'): 
         os.makedirs('results')
-    if not os.path.exists('results/mnist'):
-        os.makedirs('results/mnist')
 
-    utils.save_images(reals.detach().cpu().numpy(), 'results/mnist/reals.png')
+    save_image(reals, 'results/reals.png')
     
-    one = torch.FloatTensor([1]).cuda()
+    one = torch.tensor(1.).cuda()
     mone = (one * -1)
     
     print ('==> Begin Training')

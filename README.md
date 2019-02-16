@@ -19,8 +19,3 @@ It should do MNIST and CIFAR without much trouble. I'll get to working on some a
 # CIFAR10
 
 ![results](images/cifar_results.png)
-
-## Notes
-
-
-If you have PyTorch 0.4.1+, there is a weird bug/feature with the mean() function creating a 1-dim tensor that gets broadcasted to 0-dim. To avoid it just replace instances of `.mean()` with `.mean(0, keepdim=True)`

@@ -5,7 +5,7 @@ I got frustrated that there weren't really any baseline implementations for the 
 
 This should work **out of the box** with just a couple packages:
 
-* PyTorch 0.4.0
+* PyTorch 0.4.1
 * Scipy
 * Numpy
 

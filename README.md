@@ -1,5 +1,5 @@
 # Improved-WGAN
-WGAN-GP Implemented in Python3 with PyTorch 0.4.0
+WGAN-GP Implemented in Python3 with PyTorch 0.4.1
 
 I got frustrated that there weren't really any baseline implementations for the wgan-gp in PyTorch-0.4.0, much less in Python3, So here's one I made on a nice summer morning. 
 
